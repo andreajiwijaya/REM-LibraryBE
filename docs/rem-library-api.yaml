@@ -1,0 +1,941 @@
+openapi: 3.0.3
+info:
+  title: REM-Library API
+  description: REST API Documentation for REM-Library E-Library System
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: johndoe
+        role:
+          type: string
+          example: user
+      required:
+        - id
+        - username
+        - role
+
+    UserInput:
+      type: object
+      properties:
+        username:
+          type: string
+          example: johndoe
+        password:
+          type: string
+          example: strongpassword123
+        role:
+          type: string
+          example: user
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR...
+
+    Book:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: The Great Gatsby
+        author:
+          type: string
+          example: F. Scott Fitzgerald
+        description:
+          type: string
+          example: Classic novel
+        categoryId:
+          type: integer
+          example: 2
+      required:
+        - id
+        - title
+        - author
+        - categoryId
+
+    BookInput:
+      type: object
+      properties:
+        title:
+          type: string
+          example: The Great Gatsby
+        author:
+          type: string
+          example: F. Scott Fitzgerald
+        description:
+          type: string
+          example: Classic novel
+        categoryId:
+          type: integer
+          example: 2
+
+    Borrow:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        userId:
+          type: integer
+          example: 1
+        bookId:
+          type: integer
+          example: 3
+        borrowDate:
+          type: string
+          format: date
+          example: 2025-05-20
+        returnDate:
+          type: string
+          format: date
+          example: 2025-06-20
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Fiction
+        description:
+          type: string
+          example: Fictional books and novels
+
+    CategoryInput:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Fiction
+        description:
+          type: string
+          example: Fictional books and novels
+
+    Favorite:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        userId:
+          type: integer
+          example: 1
+        bookId:
+          type: integer
+          example: 3
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        userId:
+          type: integer
+          example: 1
+        bookId:
+          type: integer
+          example: 3
+        rating:
+          type: integer
+          format: int32
+          example: 5
+        comment:
+          type: string
+          example: "Great book!"
+
+    ReviewInput:
+      type: object
+      properties:
+        rating:
+          type: integer
+          format: int32
+          example: 5
+        comment:
+          type: string
+          example: "Great book!"
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      summary: Login user and get JWT token
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: johndoe
+                password:
+                  type: string
+                  example: strongpassword123
+      responses:
+        200:
+          description: Successful login, returns JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        401:
+          description: Invalid credentials
+
+  /users:
+    get:
+      summary: Get paginated list of users
+      tags:
+        - Users
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of users per page
+          required: false
+          schema:
+            type: integer
+            default: 10
+        - name: search
+          in: query
+          description: Search keyword for username or role
+          required: false
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of users with pagination info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+
+    post:
+      summary: Create a new user
+      tags:
+        - Users
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+      responses:
+        201:
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users/{id}:
+    get:
+      summary: Get user by ID
+      tags:
+        - Users
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: User data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        404:
+          description: User not found
+
+    put:
+      summary: Update user by ID
+      tags:
+        - Users
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                role:
+                  type: string
+      responses:
+        200:
+          description: Updated user data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        404:
+          description: User not found
+
+    delete:
+      summary: Delete user by ID
+      tags:
+        - Users
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User deleted successfully
+        404:
+          description: User not found
+
+  /books:
+    get:
+      summary: Get all books with pagination
+      tags:
+        - Books
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of books per page
+          required: false
+          schema:
+            type: integer
+            default: 10
+        - name: search
+          in: query
+          description: Search keyword for book title or author
+          required: false
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of books with pagination info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Book'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+
+    post:
+      summary: Create a new book
+      tags:
+        - Books
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookInput'
+      responses:
+        201:
+          description: Book created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+
+  /books/{id}:
+    get:
+      summary: Get book by ID
+      tags:
+        - Books
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Book ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Book data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        404:
+          description: Book not found
+
+    put:
+      summary: Update book by ID
+      tags:
+        - Books
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Book ID
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookInput'
+      responses:
+        200:
+          description: Updated book data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        404:
+          description: Book not found
+
+    delete:
+      summary: Delete book by ID
+      tags:
+        - Books
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: Book ID
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Book deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Book deleted successfully
+        404:
+          description: Book not found
+
+  /borrows:
+    get:
+      summary: Get all borrow records
+      tags:
+        - Borrow
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of borrow records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Borrow'
+
+    post:
+      summary: Create a borrow record
+      tags:
+        - Borrow
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                bookId:
+                  type: integer
+                borrowDate:
+                  type: string
+                  format: date
+                returnDate:
+                  type: string
+                  format: date
+      responses:
+        201:
+          description: Borrow record created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Borrow'
+
+  /borrows/{id}:
+    get:
+      summary: Get borrow record by ID
+      tags:
+        - Borrow
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Borrow record data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Borrow'
+        404:
+          description: Borrow record not found
+
+    put:
+      summary: Update borrow record by ID
+      tags:
+        - Borrow
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                returnDate:
+                  type: string
+                  format: date
+      responses:
+        200:
+          description: Updated borrow record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Borrow'
+        404:
+          description: Borrow record not found
+
+    delete:
+      summary: Delete borrow record by ID
+      tags:
+        - Borrow
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Borrow record deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Borrow record deleted successfully
+        404:
+          description: Borrow record not found
+
+  /categories:
+    get:
+      summary: Get all categories
+      tags:
+        - Category
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+
+    post:
+      summary: Create new category
+      tags:
+        - Category
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        201:
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+
+  /categories/{id}:
+    get:
+      summary: Get category by ID
+      tags:
+        - Category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Category data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        404:
+          description: Category not found
+
+    put:
+      summary: Update category by ID
+      tags:
+        - Category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        200:
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        404:
+          description: Category not found
+
+    delete:
+      summary: Delete category by ID
+      tags:
+        - Category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Category deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Category deleted successfully
+        404:
+          description: Category not found
+
+  /favorites:
+    get:
+      summary: Get all favorites for the logged-in user
+      tags:
+        - Favorite
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of favorite books
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Favorite'
+
+    post:
+      summary: Add a book to favorites
+      tags:
+        - Favorite
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bookId:
+                  type: integer
+      responses:
+        201:
+          description: Favorite added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favorite'
+
+    delete:
+      summary: Remove a favorite by ID
+      tags:
+        - Favorite
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: query
+          description: Favorite ID to delete
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Favorite removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Favorite removed successfully
+
+  /reviews:
+    get:
+      summary: Get all reviews
+      tags:
+        - Review
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Review'
+
+    post:
+      summary: Create a new review
+      tags:
+        - Review
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ReviewInput'
+                - type: object
+                  properties:
+                    bookId:
+                      type: integer
+      responses:
+        201:
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+
+  /reviews/{id}:
+    get:
+      summary: Get review by ID
+      tags:
+        - Review
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Review data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        404:
+          description: Review not found
+
+    put:
+      summary: Update review by ID
+      tags:
+        - Review
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewInput'
+      responses:
+        200:
+          description: Updated review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        404:
+          description: Review not found
+
+    delete:
+      summary: Delete review by ID
+      tags:
+        - Review
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Review deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Review deleted successfully
+        404:
+          description: Review not found
