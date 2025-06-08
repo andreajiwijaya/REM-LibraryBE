@@ -7,7 +7,7 @@ exports.loginUser = exports.registerUser = void 0;
 const db_1 = __importDefault(require("../config/db"));
 const hash_1 = require("../utils/hash");
 const jwt_1 = require("../utils/jwt");
-const registerUser = async ({ username, email, password, role = 'user' }) => {
+const registerUser = async ({ username, email, password, role = 'user', }) => {
     const existingUser = await db_1.default.user.findFirst({
         where: {
             OR: [{ username }, { email }],
@@ -39,6 +39,15 @@ const loginUser = async ({ username, password }) => {
     if (!isValid)
         throw new Error('Invalid credentials');
     const token = (0, jwt_1.generateToken)({ userId: user.id, role: user.role });
-    return token;
+    // Kirim user info tanpa password
+    return {
+        token,
+        user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+        },
+    };
 };
 exports.loginUser = loginUser;

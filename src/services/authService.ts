@@ -14,7 +14,12 @@ interface LoginInput {
   password: string;
 }
 
-export const registerUser = async ({ username, email, password, role = 'user' }: RegisterInput) => {
+export const registerUser = async ({
+  username,
+  email,
+  password,
+  role = 'user',
+}: RegisterInput) => {
   const existingUser = await prisma.user.findFirst({
     where: {
       OR: [{ username }, { email }],
@@ -48,5 +53,15 @@ export const loginUser = async ({ username, password }: LoginInput) => {
   if (!isValid) throw new Error('Invalid credentials');
 
   const token = generateToken({ userId: user.id, role: user.role });
-  return token;
+
+  // Kirim user info tanpa password
+  return {
+    token,
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+    },
+  };
 };

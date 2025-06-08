@@ -62,8 +62,8 @@ const register = async (req, res) => {
 exports.register = register;
 const login = async (req, res) => {
     try {
-        const token = await authService.loginUser(req.body);
-        res.json({ token });
+        const { token, user } = await authService.loginUser(req.body);
+        res.json({ token, user });
     }
     catch (error) {
         if (error.message === 'Invalid credentials') {

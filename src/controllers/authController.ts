@@ -31,8 +31,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const token = await authService.loginUser(req.body);
-    res.json({ token });
+    const { token, user } = await authService.loginUser(req.body);
+    res.json({ token, user });
   } catch (error: any) {
     if (error.message === 'Invalid credentials') {
       res.status(400).json({ message: error.message });
