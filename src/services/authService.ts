@@ -4,8 +4,9 @@ import { generateToken } from '../utils/jwt';
 
 interface RegisterInput {
   username: string;
+  email: string;
   password: string;
-  role?: 'user' | 'admin'; // hanya bisa 'user' atau 'admin'
+  role?: 'user' | 'admin';
 }
 
 interface LoginInput {
@@ -13,17 +14,26 @@ interface LoginInput {
   password: string;
 }
 
-export const registerUser = async ({ username, password, role = 'user' }: RegisterInput) => {
-  const existingUser = await prisma.user.findUnique({ where: { username } });
-  if (existingUser) throw new Error('Username already exists');
+export const registerUser = async ({ username, email, password, role = 'user' }: RegisterInput) => {
+  const existingUser = await prisma.user.findFirst({
+    where: {
+      OR: [{ username }, { email }],
+    },
+  });
+
+  if (existingUser) {
+    if (existingUser.username === username) throw new Error('Username already exists');
+    if (existingUser.email === email) throw new Error('Email already exists');
+  }
 
   const hashedPassword = await hashPassword(password);
 
   const newUser = await prisma.user.create({
     data: {
       username,
+      email,
       password: hashedPassword,
-      role, // disimpan di DB
+      role,
     },
   });
 

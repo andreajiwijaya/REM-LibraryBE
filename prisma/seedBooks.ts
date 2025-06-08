@@ -1,11 +1,11 @@
-// prisma/seedBooksBatch3.ts
+// prisma/seedBooksBatch2.ts
 
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
   const books = [
-    {
+       {
       title: "Laskar Pelangi",
       author: "Andrea Hirata",
       description: "Novel populer tentang perjuangan anak-anak di Belitung untuk mendapatkan pendidikan.",

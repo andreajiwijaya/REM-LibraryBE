@@ -3,7 +3,7 @@ import * as authService from '../services/authService';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { username, password, role } = req.body;
+    const { username, email, password, role } = req.body;
 
     // Validasi role jika dikirim
     if (role && role !== 'user' && role !== 'admin') {
@@ -11,14 +11,17 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const newUser = await authService.registerUser({ username, password, role });
+    const newUser = await authService.registerUser({ username, email, password, role });
     res.status(201).json({
       message: 'User registered successfully',
       userId: newUser.id,
       role: newUser.role,
     });
   } catch (error: any) {
-    if (error.message === 'Username already exists') {
+    if (
+      error.message === 'Username already exists' ||
+      error.message === 'Email already exists'
+    ) {
       res.status(400).json({ message: error.message });
       return;
     }
