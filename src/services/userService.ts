@@ -3,6 +3,7 @@ import { User } from '@prisma/client';
 
 interface UserData {
   username: string;
+  email: string;
   password: string;
   role?: string;
 }
@@ -39,6 +40,12 @@ export const getAllUsers = async (
             },
             {
               role: {
+                contains: search,
+                mode: 'insensitive' as const,
+              },
+            },
+            {
+              email: {
                 contains: search,
                 mode: 'insensitive' as const,
               },

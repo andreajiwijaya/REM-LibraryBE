@@ -13,6 +13,7 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
     const sanitizedUsers = result.data.map((user) => ({
       id: user.id,
       username: user.username,
+      email: user.email,
       role: user.role,
     }));
 
@@ -35,8 +36,8 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const { id, username, role } = user;
-    res.json({ id, username, role });
+    const { id, username, email, role } = user;
+    res.json({ id, username, email, role });
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to get user', error: error.message });
   }
@@ -44,10 +45,15 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
 
 export const createUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { username, password, role } = req.body;
+    const { username, email, password, role } = req.body;
 
     if (!password || password.trim() === '') {
       res.status(400).json({ message: 'Password is required' });
+      return;
+    }
+
+    if (!email || email.trim() === '') {
+      res.status(400).json({ message: 'Email is required' });
       return;
     }
 
@@ -55,12 +61,13 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
 
     const newUser = await userService.createUser({
       username,
+      email,
       password: hashedPassword,
       role,
     });
 
     const { id } = newUser;
-    res.status(201).json({ id, username, role });
+    res.status(201).json({ id, username, email, role });
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to create user', error: error.message });
   }
@@ -73,8 +80,8 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       res.status(404).json({ message: 'User not found' });
       return;
     }
-    const { id, username, role } = updatedUser;
-    res.json({ id, username, role });
+    const { id, username, email, role } = updatedUser;
+    res.json({ id, username, email, role });
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to update user', error: error.message });
   }
