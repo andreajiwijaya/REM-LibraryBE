@@ -30,14 +30,20 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
 
 export const getUserById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const user = await userService.getUserById(parseInt(req.params.id));
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ message: 'Invalid user ID' });
+      return;
+    }
+
+    const user = await userService.getUserById(id);
     if (!user) {
       res.status(404).json({ message: 'User not found' });
       return;
     }
 
-    const { id, username, email, role } = user;
-    res.json({ id, username, email, role });
+    const { id: userId, username, email, role } = user;
+    res.json({ id: userId, username, email, role });
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to get user', error: error.message });
   }
@@ -75,13 +81,19 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
 
 export const updateUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const updatedUser = await userService.updateUser(parseInt(req.params.id), req.body);
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ message: 'Invalid user ID' });
+      return;
+    }
+
+    const updatedUser = await userService.updateUser(id, req.body);
     if (!updatedUser) {
       res.status(404).json({ message: 'User not found' });
       return;
     }
-    const { id, username, email, role } = updatedUser;
-    res.json({ id, username, email, role });
+    const { id: userId, username, email, role } = updatedUser;
+    res.json({ id: userId, username, email, role });
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to update user', error: error.message });
   }
@@ -89,7 +101,13 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
 
 export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const deleted = await userService.deleteUser(parseInt(req.params.id));
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ message: 'Invalid user ID' });
+      return;
+    }
+
+    const deleted = await userService.deleteUser(id);
     if (!deleted) {
       res.status(404).json({ message: 'User not found' });
       return;
@@ -107,7 +125,11 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const userId = req.user.id;
+    const userId = Number(req.user.id);
+    if (isNaN(userId)) {
+      res.status(400).json({ message: 'Invalid user ID' });
+      return;
+    }
 
     // Panggil service untuk ambil data user berdasarkan userId
     const user = await userService.getUserById(userId);
