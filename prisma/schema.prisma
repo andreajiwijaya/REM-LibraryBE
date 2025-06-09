@@ -30,11 +30,17 @@ model Book {
 }
 
 model Borrow {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  bookId     Int
-  borrowDate DateTime @default(now())
-  returnDate DateTime?
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  bookId      Int
+  borrowDate  DateTime  @default(now())
+  dueDate     DateTime
+  returnDate  DateTime?
+  status      String    @default("dipinjam")
+  fineAmount  Float?    // opsional, bisa 0 jika tidak ada denda
+  extended    Boolean   @default(false)
+  notes       String?
+  handledBy   Int?      
 
   user User @relation(fields: [userId], references: [id])
   book Book @relation(fields: [bookId], references: [id])

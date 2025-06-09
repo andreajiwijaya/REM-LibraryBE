@@ -39,15 +39,26 @@ const borrowController = __importStar(require("../controllers/borrowController")
 const authMiddleware_1 = require("../middlewares/authMiddleware");
 const roleMiddleware_1 = require("../middlewares/roleMiddleware");
 const router = (0, express_1.Router)();
+// Semua route di bawah ini harus sudah login
 router.use(authMiddleware_1.authMiddleware);
+// GET /borrows?page=&limit= (admin only) dengan pagination dan validasi query param
 router.get('/', (0, roleMiddleware_1.roleMiddleware)(['admin']), (0, express_validator_1.query)('page').optional().isInt({ gt: 0 }).withMessage('Page must be a positive integer'), (0, express_validator_1.query)('limit').optional().isInt({ gt: 0 }).withMessage('Limit must be a positive integer'), borrowController.getAllBorrows);
+// GET /borrows/my (user only) get borrow milik user sendiri
 router.get('/my', (0, roleMiddleware_1.roleMiddleware)(['user']), borrowController.getMyBorrows);
+// GET /borrows/user/:userId (admin only) get borrow berdasarkan userId
 router.get('/user/:userId', (0, roleMiddleware_1.roleMiddleware)(['admin']), (0, express_validator_1.param)('userId').isInt().withMessage('Invalid user ID'), borrowController.getBorrowsByUserId);
+// GET /borrows/book/:bookId (admin only) get borrow berdasarkan bookId
 router.get('/book/:bookId', (0, roleMiddleware_1.roleMiddleware)(['admin']), (0, express_validator_1.param)('bookId').isInt().withMessage('Invalid book ID'), borrowController.getBorrowsByBookId);
+// GET /borrows/overdue (admin only) get borrow yang overdue
 router.get('/overdue', (0, roleMiddleware_1.roleMiddleware)(['admin']), borrowController.getOverdueBorrows);
+// GET /borrows/:id (admin dan user) get borrow by id
 router.get('/:id', (0, roleMiddleware_1.roleMiddleware)(['admin', 'user']), (0, express_validator_1.param)('id').isInt().withMessage('Invalid borrow ID'), borrowController.getBorrowById);
-router.post('/', (0, roleMiddleware_1.roleMiddleware)(['user']), (0, express_validator_1.body)('bookId').isInt({ gt: 0 }).withMessage('bookId must be a positive integer'), (0, express_validator_1.body)('returnDate').optional().isISO8601().toDate().withMessage('returnDate must be a valid date'), borrowController.createBorrow);
+// POST /borrows (user only) create borrow baru
+router.post('/', (0, roleMiddleware_1.roleMiddleware)(['user']), (0, express_validator_1.body)('bookId').isInt({ gt: 0 }).withMessage('bookId must be a positive integer'), (0, express_validator_1.body)('dueDate').isISO8601().toDate().withMessage('dueDate must be a valid date'), (0, express_validator_1.body)('notes').optional().isString(), borrowController.createBorrow);
+// PUT /borrows/:id/return (user only) update status pengembalian
 router.put('/:id/return', (0, roleMiddleware_1.roleMiddleware)(['user']), (0, express_validator_1.param)('id').isInt().withMessage('Invalid borrow ID'), borrowController.returnBorrow);
+// PUT /borrows/:id (admin only) update borrow by id
 router.put('/:id', (0, roleMiddleware_1.roleMiddleware)(['admin']), (0, express_validator_1.param)('id').isInt().withMessage('Invalid borrow ID'), borrowController.updateBorrow);
+// DELETE /borrows/:id (admin only) delete borrow by id
 router.delete('/:id', (0, roleMiddleware_1.roleMiddleware)(['admin']), (0, express_validator_1.param)('id').isInt().withMessage('Invalid borrow ID'), borrowController.deleteBorrow);
 exports.default = router;

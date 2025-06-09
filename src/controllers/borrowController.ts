@@ -66,14 +66,20 @@ export const createBorrow = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const { bookId, returnDate } = req.body;
+    const { bookId, dueDate, notes } = req.body;
 
     const newBorrow = await borrowService.createBorrow({
       userId,
       bookId,
       borrowDate: new Date(),
-      returnDate: returnDate ? new Date(returnDate) : null,
+      dueDate: new Date(dueDate),
+      status: 'dipinjam',
+      fineAmount: 0,
+      extended: false,
+      notes: notes || null,
+      handledBy: null,
     });
+
     res.status(201).json(newBorrow);
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to create borrow record', error: error.message });
@@ -104,7 +110,12 @@ export const returnBorrow = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const updated = await borrowService.updateBorrow(id, { returnDate: new Date() });
+    const updated = await borrowService.updateBorrow(id, {
+      returnDate: new Date(),
+      status: 'dikembalikan',
+      handledBy: req.user?.id,
+    });
+
     res.json(updated);
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to return borrow record', error: error.message });
@@ -124,6 +135,7 @@ export const updateBorrow = async (req: Request, res: Response): Promise<void> =
       res.status(404).json({ message: 'Borrow record not found' });
       return;
     }
+
     res.json(updatedBorrow);
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to update borrow record', error: error.message });
@@ -143,6 +155,7 @@ export const deleteBorrow = async (req: Request, res: Response): Promise<void> =
       res.status(404).json({ message: 'Borrow record not found' });
       return;
     }
+
     res.json({ message: 'Borrow record deleted successfully' });
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to delete borrow record', error: error.message });

@@ -98,12 +98,17 @@ const createBorrow = async (req, res) => {
             res.status(401).json({ message: 'Unauthorized' });
             return;
         }
-        const { bookId, returnDate } = req.body;
+        const { bookId, dueDate, notes } = req.body;
         const newBorrow = await borrowService.createBorrow({
             userId,
             bookId,
             borrowDate: new Date(),
-            returnDate: returnDate ? new Date(returnDate) : null,
+            dueDate: new Date(dueDate),
+            status: 'dipinjam',
+            fineAmount: 0,
+            extended: false,
+            notes: notes || null,
+            handledBy: null,
         });
         res.status(201).json(newBorrow);
     }
@@ -132,7 +137,11 @@ const returnBorrow = async (req, res) => {
             res.status(400).json({ message: 'Book already returned' });
             return;
         }
-        const updated = await borrowService.updateBorrow(id, { returnDate: new Date() });
+        const updated = await borrowService.updateBorrow(id, {
+            returnDate: new Date(),
+            status: 'dikembalikan',
+            handledBy: req.user?.id,
+        });
         res.json(updated);
     }
     catch (error) {
