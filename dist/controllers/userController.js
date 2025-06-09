@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteUser = exports.updateUser = exports.createUser = exports.getUserById = exports.getAllUsers = void 0;
+exports.getCurrentUser = exports.deleteUser = exports.updateUser = exports.createUser = exports.getUserById = exports.getAllUsers = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const userService = __importStar(require("../services/userService"));
 const getAllUsers = async (req, res) => {
@@ -65,13 +65,18 @@ const getAllUsers = async (req, res) => {
 exports.getAllUsers = getAllUsers;
 const getUserById = async (req, res) => {
     try {
-        const user = await userService.getUserById(parseInt(req.params.id));
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            res.status(400).json({ message: 'Invalid user ID' });
+            return;
+        }
+        const user = await userService.getUserById(id);
         if (!user) {
             res.status(404).json({ message: 'User not found' });
             return;
         }
-        const { id, username, email, role } = user;
-        res.json({ id, username, email, role });
+        const { id: userId, username, email, role } = user;
+        res.json({ id: userId, username, email, role });
     }
     catch (error) {
         res.status(500).json({ message: 'Failed to get user', error: error.message });
@@ -106,13 +111,18 @@ const createUser = async (req, res) => {
 exports.createUser = createUser;
 const updateUser = async (req, res) => {
     try {
-        const updatedUser = await userService.updateUser(parseInt(req.params.id), req.body);
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            res.status(400).json({ message: 'Invalid user ID' });
+            return;
+        }
+        const updatedUser = await userService.updateUser(id, req.body);
         if (!updatedUser) {
             res.status(404).json({ message: 'User not found' });
             return;
         }
-        const { id, username, email, role } = updatedUser;
-        res.json({ id, username, email, role });
+        const { id: userId, username, email, role } = updatedUser;
+        res.json({ id: userId, username, email, role });
     }
     catch (error) {
         res.status(500).json({ message: 'Failed to update user', error: error.message });
@@ -121,7 +131,12 @@ const updateUser = async (req, res) => {
 exports.updateUser = updateUser;
 const deleteUser = async (req, res) => {
     try {
-        const deleted = await userService.deleteUser(parseInt(req.params.id));
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            res.status(400).json({ message: 'Invalid user ID' });
+            return;
+        }
+        const deleted = await userService.deleteUser(id);
         if (!deleted) {
             res.status(404).json({ message: 'User not found' });
             return;
@@ -133,3 +148,28 @@ const deleteUser = async (req, res) => {
     }
 };
 exports.deleteUser = deleteUser;
+const getCurrentUser = async (req, res) => {
+    try {
+        if (!req.user) {
+            res.status(401).json({ message: 'Unauthorized' });
+            return;
+        }
+        const userId = Number(req.user.id);
+        if (isNaN(userId)) {
+            res.status(400).json({ message: 'Invalid user ID' });
+            return;
+        }
+        // Panggil service untuk ambil data user berdasarkan userId
+        const user = await userService.getUserById(userId);
+        if (!user) {
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+        const { id, username, email, role } = user;
+        res.json({ id, username, email, role });
+    }
+    catch (error) {
+        res.status(500).json({ message: 'Failed to get current user', error: error.message });
+    }
+};
+exports.getCurrentUser = getCurrentUser;

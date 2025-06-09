@@ -39,6 +39,7 @@ const authMiddleware_1 = require("../middlewares/authMiddleware");
 const roleMiddleware_1 = require("../middlewares/roleMiddleware");
 const router = (0, express_1.Router)();
 router.use(authMiddleware_1.authMiddleware);
+router.get('/me', userController.getCurrentUser); // tanpa roleMiddleware, cukup authMiddleware saja sudah dipakai global
 // Hanya admin boleh lihat, ubah, hapus user
 router.get('/', (0, roleMiddleware_1.roleMiddleware)(['admin']), userController.getAllUsers);
 router.get('/:id', (0, roleMiddleware_1.roleMiddleware)(['admin']), userController.getUserById);
