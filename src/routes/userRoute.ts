@@ -7,6 +7,8 @@ const router = Router();
 
 router.use(authMiddleware);
 
+router.get('/me', userController.getCurrentUser); // tanpa roleMiddleware, cukup authMiddleware saja sudah dipakai global
+
 // Hanya admin boleh lihat, ubah, hapus user
 router.get('/', roleMiddleware(['admin']), userController.getAllUsers);
 router.get('/:id', roleMiddleware(['admin']), userController.getUserById);

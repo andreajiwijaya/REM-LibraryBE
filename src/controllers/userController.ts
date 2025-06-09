@@ -99,3 +99,26 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
     res.status(500).json({ message: 'Failed to delete user', error: error.message });
   }
 };
+
+export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const userId = req.user.id;
+
+    // Panggil service untuk ambil data user berdasarkan userId
+    const user = await userService.getUserById(userId);
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    const { id, username, email, role } = user;
+    res.json({ id, username, email, role });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to get current user', error: error.message });
+  }
+};
