@@ -2,16 +2,30 @@ import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import * as borrowService from '../services/borrowService';
 
+// --- FUNGSI INI YANG DIPERBARUI ---
 export const getAllBorrows = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
-    const data = await borrowService.getAllBorrows({ page, limit });
-    res.json(data);
+    // Ambil parameter baru dari query
+    const status = req.query.status as string | undefined;
+    const searchTerm = req.query.searchTerm as string | undefined;
+
+    // Panggil service dengan semua parameter
+    const result = await borrowService.getAllBorrows({
+      page,
+      limit,
+      status,
+      searchTerm,
+    });
+    
+    res.json(result);
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to get borrows', error: error.message });
   }
 };
+// --- BATAS FUNGSI YANG DIPERBARUI ---
+
 
 export const getMyBorrows = async (req: Request, res: Response): Promise<void> => {
   try {
