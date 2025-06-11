@@ -144,3 +144,36 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
     res.status(500).json({ message: 'Failed to get current user', error: error.message });
   }
 };
+
+export const updateCurrentUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const userId = Number(req.user.id);
+    if (isNaN(userId)) {
+      res.status(400).json({ message: 'Invalid user ID' });
+      return;
+    }
+
+    const { username, email, password } = req.body;
+
+    const updateData: any = {};
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+    if (password) updateData.password = await bcrypt.hash(password, 10);
+
+    const updatedUser = await userService.updateUser(userId, updateData);
+    if (!updatedUser) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    const { id, username: updatedUsername, email: updatedEmail, role } = updatedUser;
+    res.json({ id, username: updatedUsername, email: updatedEmail, role });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to update user', error: error.message });
+  }
+};

@@ -90,3 +90,5 @@ export const deleteUser = async (id: number): Promise<boolean> => {
   await prisma.user.delete({ where: { id } });
   return true;
 };
+
+
