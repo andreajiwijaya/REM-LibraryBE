@@ -35,6 +35,7 @@ router.put('/:id',
   body('title').optional().notEmpty(),
   body('author').optional().notEmpty(),
   body('description').optional().notEmpty(),
+  body('categoryId').optional().isInt().withMessage('categoryId must be an integer'),
   bookController.updateBook
 );
 router.delete('/:id', roleMiddleware(['admin']), bookController.deleteBook);
