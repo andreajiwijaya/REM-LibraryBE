@@ -93,73 +93,69 @@ export const createBook = async (data: BookData): Promise<Book> => {
 // 4. Update book by ID (DIPERBAIKI)
 // 4. Update book by ID (DIPERBAIKI LAGI)
 export const updateBook = async (id: number, data: Partial<BookData>): Promise<Book | null> => {
-  const { title, author, description, categoryIds } = data;
+  try { // Tambahkan try...catch di level paling atas
+    const { title, author, description, categoryIds } = data;
 
-  // Langkah 1: Pastikan buku ada SEBELUM memulai transaksi
-  const bookExists = await prisma.book.findUnique({ where: { id } });
-  if (!bookExists) {
-    return null; 
-  }
-  
-  // Langkah 2: Validasi bahwa semua categoryIds (jika ada) benar-benar ada di database
-  if (categoryIds && categoryIds.length > 0) {
-    const categoriesCount = await prisma.category.count({
-      where: { id: { in: categoryIds } },
-    });
-    if (categoriesCount !== categoryIds.length) {
-        throw new Error('Satu atau lebih ID kategori tidak valid.');
+    const bookExists = await prisma.book.findUnique({ where: { id } });
+    if (!bookExists) {
+      console.log(`[DEBUG] Buku dengan ID: ${id} tidak ditemukan.`);
+      return null;
     }
-  }
-
-  // Langkah 3: Lakukan semua operasi update dalam satu transaksi
-  return prisma.$transaction(async (tx) => {
     
-    // --- INI BAGIAN YANG DIPERBAIKI ---
-    // Buat objek data untuk update, hanya berisi field yang ada (bukan undefined)
-    const dataToUpdate: { title?: string; author?: string; description?: string } = {};
-    if (title !== undefined) dataToUpdate.title = title;
-    if (author !== undefined) dataToUpdate.author = author;
-    if (description !== undefined) dataToUpdate.description = description;
-
-    // Hanya jalankan update jika ada data yang perlu diupdate
-    if (Object.keys(dataToUpdate).length > 0) {
-        await tx.book.update({
-          where: { id },
-          data: dataToUpdate, // Gunakan objek yang sudah difilter
-        });
-    }
-    // --- AKHIR BAGIAN YANG DIPERBAIKI ---
-
-
-    // Hapus semua relasi kategori yang lama
-    await tx.bookCategory.deleteMany({
-      where: { bookId: id },
-    });
-
-    // Buat ulang relasi kategori yang baru (jika ada)
     if (categoryIds && categoryIds.length > 0) {
-      await tx.bookCategory.createMany({
-        data: categoryIds.map((catId) => ({
-          bookId: id,
-          categoryId: catId,
-        })),
+      const categoriesCount = await prisma.category.count({
+        where: { id: { in: categoryIds } },
       });
+      if (categoriesCount !== categoryIds.length) {
+        throw new Error('Satu atau lebih ID kategori tidak valid.');
+      }
     }
 
-    // Ambil dan kembalikan data buku final yang sudah lengkap
-    const finalBook = await tx.book.findUnique({
-      where: { id },
-      include: {
-        categories: { include: { category: true } },
-      },
+    console.log(`[DEBUG] Memulai transaksi untuk update buku ID: ${id}`);
+    return prisma.$transaction(async (tx) => {
+      const dataToUpdate: { title?: string; author?: string; description?: string } = {};
+      if (title !== undefined) dataToUpdate.title = title;
+      if (author !== undefined) dataToUpdate.author = author;
+      if (description !== undefined) dataToUpdate.description = description;
+
+      if (Object.keys(dataToUpdate).length > 0) {
+        console.log(`[DEBUG] Melakukan update data dasar...`);
+        await tx.book.update({ where: { id }, data: dataToUpdate });
+      }
+
+      console.log(`[DEBUG] Menghapus relasi kategori lama...`);
+      await tx.bookCategory.deleteMany({ where: { bookId: id } });
+
+      if (categoryIds && categoryIds.length > 0) {
+        console.log(`[DEBUG] Membuat relasi kategori baru...`);
+        await tx.bookCategory.createMany({
+          data: categoryIds.map((catId) => ({
+            bookId: id,
+            categoryId: catId,
+          })),
+        });
+      }
+
+      console.log(`[DEBUG] Mengambil data final...`);
+      const finalBook = await tx.book.findUnique({
+        where: { id },
+        include: { categories: { include: { category: true } } },
+      });
+
+      if (!finalBook) {
+        throw new Error("Gagal mengambil data buku setelah update.");
+      }
+      
+      console.log(`[DEBUG] Transaksi berhasil.`);
+      return finalBook;
     });
-
-    if (!finalBook) {
-      throw new Error("Gagal mengambil data buku setelah update.");
-    }
-    
-    return finalBook;
-  });
+  } catch (error) {
+    // BLOK INI AKAN MENANGKAP SEMUANYA
+    console.error('🔥🔥🔥 TERJADI ERROR FATAL DI FUNGSI updateBook:', error);
+    // Kita sengaja melempar ulang error agar proses tetap gagal dan menghasilkan 500,
+    // tapi kita sudah mencatatnya di log.
+    throw error;
+  }
 };
 
 
