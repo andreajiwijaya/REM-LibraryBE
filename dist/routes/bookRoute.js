@@ -47,7 +47,7 @@ router.get('/author/:author', bookController.getBooksByAuthor);
 router.get('/:id', bookController.getBookById);
 // Akses admin
 router.post('/', (0, roleMiddleware_1.roleMiddleware)(['admin']), (0, express_validator_1.body)('title').notEmpty(), (0, express_validator_1.body)('author').notEmpty(), (0, express_validator_1.body)('description').notEmpty(), bookController.createBook);
-router.put('/:id', (0, roleMiddleware_1.roleMiddleware)(['admin']), (0, express_validator_1.body)('title').optional().notEmpty(), (0, express_validator_1.body)('author').optional().notEmpty(), (0, express_validator_1.body)('description').optional().notEmpty(), bookController.updateBook);
+router.put('/:id', (0, roleMiddleware_1.roleMiddleware)(['admin']), (0, express_validator_1.body)('title').optional().notEmpty(), (0, express_validator_1.body)('author').optional().notEmpty(), (0, express_validator_1.body)('description').optional().notEmpty(), (0, express_validator_1.body)('categoryIds').optional().isArray().withMessage('categoryIds harus berupa array of integers'), (0, express_validator_1.body)('categoryIds.*').isInt().withMessage('Setiap categoryId harus berupa integer'), bookController.updateBook);
 router.delete('/:id', (0, roleMiddleware_1.roleMiddleware)(['admin']), bookController.deleteBook);
 router.post('/:id/categories', (0, roleMiddleware_1.roleMiddleware)(['admin']), bookController.addCategoryToBook);
 router.delete('/:id/categories/:categoryId', (0, roleMiddleware_1.roleMiddleware)(['admin']), bookController.removeCategoryFromBook);

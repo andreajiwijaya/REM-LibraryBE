@@ -110,6 +110,7 @@ const updateBook = async (req, res) => {
         res.json(updatedBook);
     }
     catch (error) {
+        console.error("🛑 UpdateBook Error:", error);
         res.status(500).json({ message: 'Failed to update book', error: error.message });
     }
 };
