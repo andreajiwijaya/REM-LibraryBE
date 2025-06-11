@@ -5,6 +5,7 @@ interface BookData {
   title: string;
   author: string;
   description: string;
+  categoryIds?: number[]; // optional biar gak error kalau gak dikirim
 }
 
 interface GetAllBooksOptions {
@@ -64,30 +65,38 @@ export const createBook = async (data: BookData): Promise<Book> => {
   return await prisma.book.create({ data });
 };
 
-export const updateBook = async (
-  id: number,
-  data: Partial<BookData> & { categoryIds?: number[] }
-): Promise<Book | null> => {
+export const updateBook = async (id: number, data: Partial<BookData>): Promise<Book | null> => {
   const book = await prisma.book.findUnique({ where: { id } });
   if (!book) return null;
 
-  const { categoryIds, ...bookData } = data;
-
-  return await prisma.book.update({
+  const updatedBook = await prisma.book.update({
     where: { id },
     data: {
-      ...bookData,
-      categories: categoryIds
-        ? {
-            set: categoryIds.map((categoryId) => ({ id: categoryId })),
-          }
-        : undefined,
-    },
-    include: {
-      categories: true, // untuk mengembalikan relasi kategori
+      title: data.title,
+      author: data.author,
+      description: data.description,
     },
   });
+
+  await prisma.bookCategory.deleteMany({
+    where: { bookId: id },
+  });
+
+  if (data.categoryIds && data.categoryIds.length > 0) {
+    const bookCategoryData = data.categoryIds.map((categoryId) => ({
+      bookId: id,
+      categoryId,
+    }));
+
+    await prisma.bookCategory.createMany({
+      data: bookCategoryData,
+      skipDuplicates: true,
+    });
+  }
+
+  return updatedBook;
 };
+
 
 export const deleteBook = async (id: number): Promise<boolean> => {
   const book = await prisma.book.findUnique({ where: { id } });
