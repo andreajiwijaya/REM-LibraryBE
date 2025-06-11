@@ -91,13 +91,14 @@ export const createBook = async (data: BookData): Promise<Book> => {
 };
 
 // 4. Update book by ID (DIPERBAIKI)
+// 4. Update book by ID (DIPERBAIKI LAGI)
 export const updateBook = async (id: number, data: Partial<BookData>): Promise<Book | null> => {
   const { title, author, description, categoryIds } = data;
 
   // Langkah 1: Pastikan buku ada SEBELUM memulai transaksi
   const bookExists = await prisma.book.findUnique({ where: { id } });
   if (!bookExists) {
-    return null; // Mengembalikan null agar controller bisa memberi respon 404 Not Found
+    return null; 
   }
   
   // Langkah 2: Validasi bahwa semua categoryIds (jika ada) benar-benar ada di database
@@ -112,15 +113,23 @@ export const updateBook = async (id: number, data: Partial<BookData>): Promise<B
 
   // Langkah 3: Lakukan semua operasi update dalam satu transaksi
   return prisma.$transaction(async (tx) => {
-    // Update data scalar (title, author, description)
-    await tx.book.update({
-      where: { id },
-      data: {
-        title,
-        author,
-        description,
-      },
-    });
+    
+    // --- INI BAGIAN YANG DIPERBAIKI ---
+    // Buat objek data untuk update, hanya berisi field yang ada (bukan undefined)
+    const dataToUpdate: { title?: string; author?: string; description?: string } = {};
+    if (title !== undefined) dataToUpdate.title = title;
+    if (author !== undefined) dataToUpdate.author = author;
+    if (description !== undefined) dataToUpdate.description = description;
+
+    // Hanya jalankan update jika ada data yang perlu diupdate
+    if (Object.keys(dataToUpdate).length > 0) {
+        await tx.book.update({
+          where: { id },
+          data: dataToUpdate, // Gunakan objek yang sudah difilter
+        });
+    }
+    // --- AKHIR BAGIAN YANG DIPERBAIKI ---
+
 
     // Hapus semua relasi kategori yang lama
     await tx.bookCategory.deleteMany({
@@ -146,8 +155,7 @@ export const updateBook = async (id: number, data: Partial<BookData>): Promise<B
     });
 
     if (!finalBook) {
-        // Ini seharusnya tidak terjadi, tapi sebagai pengaman
-        throw new Error("Gagal mengambil data buku setelah update.");
+      throw new Error("Gagal mengambil data buku setelah update.");
     }
     
     return finalBook;
