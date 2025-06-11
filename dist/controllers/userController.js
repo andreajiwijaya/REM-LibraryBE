@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getCurrentUser = exports.deleteUser = exports.updateUser = exports.createUser = exports.getUserById = exports.getAllUsers = void 0;
+exports.updateCurrentUser = exports.getCurrentUser = exports.deleteUser = exports.updateUser = exports.createUser = exports.getUserById = exports.getAllUsers = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const userService = __importStar(require("../services/userService"));
 const getAllUsers = async (req, res) => {
@@ -173,3 +173,35 @@ const getCurrentUser = async (req, res) => {
     }
 };
 exports.getCurrentUser = getCurrentUser;
+const updateCurrentUser = async (req, res) => {
+    try {
+        if (!req.user) {
+            res.status(401).json({ message: 'Unauthorized' });
+            return;
+        }
+        const userId = Number(req.user.id);
+        if (isNaN(userId)) {
+            res.status(400).json({ message: 'Invalid user ID' });
+            return;
+        }
+        const { username, email, password } = req.body;
+        const updateData = {};
+        if (username)
+            updateData.username = username;
+        if (email)
+            updateData.email = email;
+        if (password)
+            updateData.password = await bcrypt_1.default.hash(password, 10);
+        const updatedUser = await userService.updateUser(userId, updateData);
+        if (!updatedUser) {
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+        const { id, username: updatedUsername, email: updatedEmail, role } = updatedUser;
+        res.json({ id, username: updatedUsername, email: updatedEmail, role });
+    }
+    catch (error) {
+        res.status(500).json({ message: 'Failed to update user', error: error.message });
+    }
+};
+exports.updateCurrentUser = updateCurrentUser;

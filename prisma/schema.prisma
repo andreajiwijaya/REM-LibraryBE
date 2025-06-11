@@ -43,7 +43,7 @@ model Borrow {
   handledBy   Int?      
 
   user User @relation(fields: [userId], references: [id])
-  book Book @relation(fields: [bookId], references: [id])
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
 }
 
 model Category {
@@ -59,7 +59,7 @@ model BookCategory {
   bookId     Int
   categoryId Int
 
-  book     Book     @relation(fields: [bookId], references: [id])
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id])
 
   @@unique([bookId, categoryId])
@@ -71,7 +71,7 @@ model Favorite {
   bookId  Int
 
   user User @relation(fields: [userId], references: [id])
-  book Book @relation(fields: [bookId], references: [id])
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
 
   @@unique([userId, bookId])
 }
@@ -85,5 +85,5 @@ model Review {
   date    DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
-  book Book @relation(fields: [bookId], references: [id])
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
 }
