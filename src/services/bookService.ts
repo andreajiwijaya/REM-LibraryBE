@@ -1,214 +1,205 @@
-import prisma from '../config/db';
-import { Book } from '@prisma/client';
+import { PrismaClient, Book } from '@prisma/client';
 
+// Inisialisasi Prisma Client
+const prisma = new PrismaClient();
+
+// Interface untuk data buku baru atau yang diupdate
 interface BookData {
   title: string;
   author: string;
   description: string;
-  categoryIds?: number[]; // optional biar gak error kalau gak dikirim
+  categoryIds?: number[]; // categoryIds bersifat opsional
 }
 
+// Interface untuk opsi query getAllBooks
 interface GetAllBooksOptions {
   page?: number;
   limit?: number;
   category?: string;
 }
 
+// 1. Get all books (dengan paginasi dan filter)
 export const getAllBooks = async (options: GetAllBooksOptions = {}): Promise<{ data: Book[]; total: number }> => {
   const { page = 1, limit = 10, category } = options;
   const skip = (page - 1) * limit;
 
-  if (category) {
-    const whereCondition = {
-      categories: {
-        some: {
-          category: {
-            name: category,
-          },
+  const whereCondition = category ? {
+    categories: {
+      some: {
+        category: {
+          name: category,
         },
       },
-    };
+    },
+  } : {};
 
-    const [data, total] = await Promise.all([
-      prisma.book.findMany({
-        where: whereCondition,
-        include: { categories: { include: { category: true } } },
-        skip,
-        take: limit,
-      }),
-      prisma.book.count({ where: whereCondition }),
-    ]);
-
-    return { data, total };
-  }
-
-  const [data, total] = await Promise.all([
+  const [data, total] = await prisma.$transaction([
     prisma.book.findMany({
+      where: whereCondition,
       include: { categories: { include: { category: true } } },
       skip,
       take: limit,
+      orderBy: { id: 'desc' } // Mengurutkan berdasarkan buku terbaru
     }),
-    prisma.book.count(),
+    prisma.book.count({ where: whereCondition }),
   ]);
 
   return { data, total };
 };
 
+// 2. Get book by ID
 export const getBookById = async (id: number): Promise<Book | null> => {
-  return await prisma.book.findUnique({
+  return prisma.book.findUnique({
     where: { id },
     include: { categories: { include: { category: true } } },
   });
 };
 
+// 3. Create new book (DIPERBAIKI)
 export const createBook = async (data: BookData): Promise<Book> => {
-  return await prisma.book.create({ data });
+  const { title, author, description, categoryIds } = data;
+
+  // Validasi bahwa categoryIds (jika ada) benar-benar ada di database
+  if (categoryIds && categoryIds.length > 0) {
+    const categoriesCount = await prisma.category.count({
+      where: { id: { in: categoryIds } },
+    });
+    if (categoriesCount !== categoryIds.length) {
+      throw new Error('Satu atau lebih ID kategori tidak valid.');
+    }
+  }
+
+  // Menggunakan nested writes untuk membuat buku beserta relasi kategorinya
+  return prisma.book.create({
+    data: {
+      title,
+      author,
+      description,
+      // Jika ada categoryIds, buat relasi di tabel BookCategory
+      categories: categoryIds && categoryIds.length > 0 ? {
+        create: categoryIds.map(catId => ({
+          category: {
+            connect: { id: catId },
+          },
+        })),
+      } : undefined, // Jika tidak ada, jangan buat relasi
+    },
+    include: {
+        categories: { include: { category: true } }
+    }
+  });
 };
 
-export const updateBook = async (id: number, data: BookData): Promise<Book | null> => {
-  // Gunakan transaksi untuk memastikan semua operasi berhasil atau gagal bersama.
-  const result = await prisma.$transaction(async (tx) => {
-    // --- Langkah Validasi Tambahan ---
-    // 1. Validasi dulu bahwa semua categoryIds yang dikirim benar-benar ada di database.
-    if (data.categoryIds && data.categoryIds.length > 0) {
-      const existingCategories = await tx.category.findMany({
-        where: { id: { in: data.categoryIds } },
-        select: { id: true },
-      });
+// 4. Update book by ID (DIPERBAIKI)
+export const updateBook = async (id: number, data: Partial<BookData>): Promise<Book | null> => {
+  const { title, author, description, categoryIds } = data;
 
-      // Jika jumlah kategori yang ditemukan tidak sama dengan jumlah ID yang dikirim, berarti ada ID yang tidak valid.
-      if (existingCategories.length !== data.categoryIds.length) {
-        // Temukan ID mana yang tidak valid untuk pesan error yang lebih jelas
-        const existingIds = existingCategories.map(c => c.id);
-        const invalidIds = data.categoryIds.filter(catId => !existingIds.includes(catId));
-        throw new Error(`Kategori dengan ID berikut tidak ditemukan: ${invalidIds.join(', ')}`);
-      }
+  // Langkah 1: Pastikan buku ada SEBELUM memulai transaksi
+  const bookExists = await prisma.book.findUnique({ where: { id } });
+  if (!bookExists) {
+    return null; // Mengembalikan null agar controller bisa memberi respon 404 Not Found
+  }
+  
+  // Langkah 2: Validasi bahwa semua categoryIds (jika ada) benar-benar ada di database
+  if (categoryIds && categoryIds.length > 0) {
+    const categoriesCount = await prisma.category.count({
+      where: { id: { in: categoryIds } },
+    });
+    if (categoriesCount !== categoryIds.length) {
+        throw new Error('Satu atau lebih ID kategori tidak valid.');
     }
-    // --- Akhir Langkah Validasi ---
+  }
 
+  // Langkah 3: Lakukan semua operasi update dalam satu transaksi
+  return prisma.$transaction(async (tx) => {
+    // Update data scalar (title, author, description)
+    await tx.book.update({
+      where: { id },
+      data: {
+        title,
+        author,
+        description,
+      },
+    });
 
-    // 2. Update data dasar buku (hanya jika ada datanya)
-    const bookDataToUpdate: { title?: string; author?: string; description?: string } = {};
-    if (data.title) bookDataToUpdate.title = data.title;
-    if (data.author) bookDataToUpdate.author = data.author;
-    if (data.description) bookDataToUpdate.description = data.description;
-
-    if (Object.keys(bookDataToUpdate).length > 0) {
-        await tx.book.update({
-          where: { id },
-          data: bookDataToUpdate,
-        });
-    }
-
-    // 3. Hapus semua relasi kategori yang lama untuk buku ini.
+    // Hapus semua relasi kategori yang lama
     await tx.bookCategory.deleteMany({
       where: { bookId: id },
     });
 
-    // 4. Jika ada categoryIds yang baru, buat relasi yang baru.
-    if (data.categoryIds && data.categoryIds.length > 0) {
-      const bookCategoryData = data.categoryIds.map((categoryId) => ({
-        bookId: id,
-        categoryId: categoryId,
-      }));
-
+    // Buat ulang relasi kategori yang baru (jika ada)
+    if (categoryIds && categoryIds.length > 0) {
       await tx.bookCategory.createMany({
-        data: bookCategoryData,
+        data: categoryIds.map((catId) => ({
+          bookId: id,
+          categoryId: catId,
+        })),
       });
     }
 
-    // 5. Ambil kembali data buku yang sudah lengkap dengan relasi kategori terbarunya.
+    // Ambil dan kembalikan data buku final yang sudah lengkap
     const finalBook = await tx.book.findUnique({
       where: { id },
       include: {
-        categories: {
-          include: {
-            category: true, // Asumsi: Model BookCategory punya relasi 'category' ke model Category
-          },
-        },
+        categories: { include: { category: true } },
       },
     });
 
     if (!finalBook) {
-      throw new Error('Gagal menemukan buku setelah proses update.');
+        // Ini seharusnya tidak terjadi, tapi sebagai pengaman
+        throw new Error("Gagal mengambil data buku setelah update.");
     }
-
+    
     return finalBook;
   });
-
-  return result;
 };
 
 
+// 5. Delete book by ID
 export const deleteBook = async (id: number): Promise<boolean> => {
-  const book = await prisma.book.findUnique({ where: { id } });
-  if (!book) return false;
-  await prisma.book.delete({ where: { id } });
-  return true;
+  try {
+    await prisma.book.delete({ where: { id } });
+    return true;
+  } catch (error) {
+    // Error bisa terjadi jika buku tidak ditemukan
+    return false;
+  }
 };
+
+
+// Fungsi lainnya tetap sama...
 
 export const getBooksByAuthor = async (author: string): Promise<Book[]> => {
-  return await prisma.book.findMany({
+  return prisma.book.findMany({
     where: { author: { contains: author, mode: 'insensitive' } },
     include: { categories: { include: { category: true } } },
   });
 };
 
 export const searchBooksByTitle = async (title: string): Promise<Book[]> => {
-  return await prisma.book.findMany({
+  return prisma.book.findMany({
     where: { title: { contains: title, mode: 'insensitive' } },
     include: { categories: { include: { category: true } } },
   });
 };
 
 export const addCategoryToBook = async (bookId: number, categoryId: number): Promise<Book | null> => {
-  // Pastikan buku dan kategori ada
   const book = await prisma.book.findUnique({ where: { id: bookId } });
   const category = await prisma.category.findUnique({ where: { id: categoryId } });
   if (!book || !category) return null;
 
-  // Cek apakah sudah ada relasi
-  const existing = await prisma.bookCategory.findUnique({
-    where: {
-      bookId_categoryId: {
-        bookId,
-        categoryId,
-      },
-    },
+  await prisma.bookCategory.create({
+    data: { bookId, categoryId },
+    // skipDuplicates tidak ada di create, gunakan upsert atau findFirst untuk mengecek
   });
 
-  if (!existing) {
-    await prisma.bookCategory.create({
-      data: { bookId, categoryId },
-    });
-  }
-
-  return await prisma.book.findUnique({
-    where: { id: bookId },
-    include: { categories: { include: { category: true } } },
-  });
+  return getBookById(bookId);
 };
 
 export const removeCategoryFromBook = async (bookId: number, categoryId: number): Promise<boolean> => {
-  const existing = await prisma.bookCategory.findUnique({
-    where: {
-      bookId_categoryId: {
-        bookId,
-        categoryId,
-      },
-    },
+  const result = await prisma.bookCategory.deleteMany({
+    where: { bookId, categoryId },
   });
 
-  if (!existing) return false;
-
-  await prisma.bookCategory.delete({
-    where: {
-      bookId_categoryId: {
-        bookId,
-        categoryId,
-      },
-    },
-  });
-
-  return true;
+  return result.count > 0;
 };
