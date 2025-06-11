@@ -64,10 +64,29 @@ export const createBook = async (data: BookData): Promise<Book> => {
   return await prisma.book.create({ data });
 };
 
-export const updateBook = async (id: number, data: Partial<BookData>): Promise<Book | null> => {
+export const updateBook = async (
+  id: number,
+  data: Partial<BookData> & { categoryIds?: number[] }
+): Promise<Book | null> => {
   const book = await prisma.book.findUnique({ where: { id } });
   if (!book) return null;
-  return await prisma.book.update({ where: { id }, data });
+
+  const { categoryIds, ...bookData } = data;
+
+  return await prisma.book.update({
+    where: { id },
+    data: {
+      ...bookData,
+      categories: categoryIds
+        ? {
+            set: categoryIds.map((categoryId) => ({ id: categoryId })),
+          }
+        : undefined,
+    },
+    include: {
+      categories: true, // untuk mengembalikan relasi kategori
+    },
+  });
 };
 
 export const deleteBook = async (id: number): Promise<boolean> => {
