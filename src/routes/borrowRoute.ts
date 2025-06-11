@@ -54,17 +54,10 @@ router.get('/:id',
 router.post('/',
   roleMiddleware(['user']),
   body('bookId').isInt({ gt: 0 }).withMessage('bookId must be a positive integer'),
-  body('dueDate').isISO8601().toDate().withMessage('dueDate must be a valid date'),
   body('notes').optional().isString(),
   borrowController.createBorrow
 );
 
-// PUT /borrows/:id/return (user only) update status pengembalian
-router.put('/:id/return',
-  roleMiddleware(['user']),
-  param('id').isInt().withMessage('Invalid borrow ID'),
-  borrowController.returnBorrow
-);
 
 // PUT /borrows/:id (admin only) update borrow by id
 router.put('/:id',

@@ -2,16 +2,14 @@ import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import * as borrowService from '../services/borrowService';
 
-// --- FUNGSI INI YANG DIPERBARUI ---
+// Fungsi ini sudah optimal dan mendukung filter & search
 export const getAllBorrows = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
-    // Ambil parameter baru dari query
     const status = req.query.status as string | undefined;
     const searchTerm = req.query.searchTerm as string | undefined;
 
-    // Panggil service dengan semua parameter
     const result = await borrowService.getAllBorrows({
       page,
       limit,
@@ -24,12 +22,39 @@ export const getAllBorrows = async (req: Request, res: Response): Promise<void> 
     res.status(500).json({ message: 'Failed to get borrows', error: error.message });
   }
 };
-// --- BATAS FUNGSI YANG DIPERBARUI ---
+
+// Fungsi ini menjadi satu-satunya cara untuk mengubah data peminjaman.
+export const updateBorrow = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ message: 'Invalid borrow ID' });
+      return;
+    }
+
+    const dataToUpdate = req.body;
+    
+    if ((req as any).user?.id) {
+        dataToUpdate.handledBy = (req as any).user.id;
+    }
+
+    const updatedBorrow = await borrowService.updateBorrow(id, dataToUpdate);
+    
+    if (!updatedBorrow) {
+      res.status(404).json({ message: 'Borrow record not found' });
+      return;
+    }
+
+    res.json(updatedBorrow);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to update borrow record', error: error.message });
+  }
+};
 
 
 export const getMyBorrows = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
     if (!userId) {
       res.status(401).json({ message: 'Unauthorized' });
       return;
@@ -55,7 +80,8 @@ export const getBorrowById = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    if (req.user?.role !== 'admin' && borrow.userId !== req.user?.id) {
+    const user = (req as any).user;
+    if (user?.role !== 'admin' && borrow.userId !== user?.id) {
       res.status(403).json({ message: 'Forbidden' });
       return;
     }
@@ -66,6 +92,7 @@ export const getBorrowById = async (req: Request, res: Response): Promise<void> 
   }
 };
 
+// --- FUNGSI INI YANG DIPERBAIKI ---
 export const createBorrow = async (req: Request, res: Response): Promise<void> => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -74,19 +101,25 @@ export const createBorrow = async (req: Request, res: Response): Promise<void> =
   }
 
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
     if (!userId) {
       res.status(401).json({ message: 'Unauthorized' });
       return;
     }
 
-    const { bookId, dueDate, notes } = req.body;
+    // dueDate tidak lagi diambil dari body
+    const { bookId, notes } = req.body;
+
+    // Tentukan tanggal pinjam dan jatuh tempo secara otomatis
+    const borrowDate = new Date();
+    const dueDate = new Date();
+    dueDate.setDate(borrowDate.getDate() + 7); // Atur jatuh tempo 7 hari dari sekarang
 
     const newBorrow = await borrowService.createBorrow({
       userId,
       bookId,
-      borrowDate: new Date(),
-      dueDate: new Date(dueDate),
+      borrowDate: borrowDate,
+      dueDate: dueDate, // Gunakan tanggal yang sudah dihitung
       status: 'dipinjam',
       fineAmount: 0,
       extended: false,
@@ -100,61 +133,6 @@ export const createBorrow = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-export const returnBorrow = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ message: 'Invalid borrow ID' });
-      return;
-    }
-
-    const borrow = await borrowService.getBorrowById(id);
-    if (!borrow) {
-      res.status(404).json({ message: 'Borrow record not found' });
-      return;
-    }
-
-    if (req.user?.role !== 'admin' && borrow.userId !== req.user?.id) {
-      res.status(403).json({ message: 'Forbidden' });
-      return;
-    }
-
-    if (borrow.returnDate) {
-      res.status(400).json({ message: 'Book already returned' });
-      return;
-    }
-
-    const updated = await borrowService.updateBorrow(id, {
-      returnDate: new Date(),
-      status: 'dikembalikan',
-      handledBy: req.user?.id,
-    });
-
-    res.json(updated);
-  } catch (error: any) {
-    res.status(500).json({ message: 'Failed to return borrow record', error: error.message });
-  }
-};
-
-export const updateBorrow = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ message: 'Invalid borrow ID' });
-      return;
-    }
-
-    const updatedBorrow = await borrowService.updateBorrow(id, req.body);
-    if (!updatedBorrow) {
-      res.status(404).json({ message: 'Borrow record not found' });
-      return;
-    }
-
-    res.json(updatedBorrow);
-  } catch (error: any) {
-    res.status(500).json({ message: 'Failed to update borrow record', error: error.message });
-  }
-};
 
 export const deleteBorrow = async (req: Request, res: Response): Promise<void> => {
   try {
