@@ -66,23 +66,46 @@ export const createBook = async (data: BookData): Promise<Book> => {
 };
 
 export const updateBook = async (id: number, data: BookData): Promise<Book | null> => {
-  
+  // Gunakan transaksi untuk memastikan semua operasi berhasil atau gagal bersama.
   const result = await prisma.$transaction(async (tx) => {
-   
-    const bookToUpdate: { title?: string; author?: string; description?: string } = {};
-    if (data.title) bookToUpdate.title = data.title;
-    if (data.author) bookToUpdate.author = data.author;
-    if (data.description) bookToUpdate.description = data.description;
-    
-    await tx.book.update({
-      where: { id },
-      data: bookToUpdate,
-    });
+    // --- Langkah Validasi Tambahan ---
+    // 1. Validasi dulu bahwa semua categoryIds yang dikirim benar-benar ada di database.
+    if (data.categoryIds && data.categoryIds.length > 0) {
+      const existingCategories = await tx.category.findMany({
+        where: { id: { in: data.categoryIds } },
+        select: { id: true },
+      });
 
+      // Jika jumlah kategori yang ditemukan tidak sama dengan jumlah ID yang dikirim, berarti ada ID yang tidak valid.
+      if (existingCategories.length !== data.categoryIds.length) {
+        // Temukan ID mana yang tidak valid untuk pesan error yang lebih jelas
+        const existingIds = existingCategories.map(c => c.id);
+        const invalidIds = data.categoryIds.filter(catId => !existingIds.includes(catId));
+        throw new Error(`Kategori dengan ID berikut tidak ditemukan: ${invalidIds.join(', ')}`);
+      }
+    }
+    // --- Akhir Langkah Validasi ---
+
+
+    // 2. Update data dasar buku (hanya jika ada datanya)
+    const bookDataToUpdate: { title?: string; author?: string; description?: string } = {};
+    if (data.title) bookDataToUpdate.title = data.title;
+    if (data.author) bookDataToUpdate.author = data.author;
+    if (data.description) bookDataToUpdate.description = data.description;
+
+    if (Object.keys(bookDataToUpdate).length > 0) {
+        await tx.book.update({
+          where: { id },
+          data: bookDataToUpdate,
+        });
+    }
+
+    // 3. Hapus semua relasi kategori yang lama untuk buku ini.
     await tx.bookCategory.deleteMany({
       where: { bookId: id },
     });
 
+    // 4. Jika ada categoryIds yang baru, buat relasi yang baru.
     if (data.categoryIds && data.categoryIds.length > 0) {
       const bookCategoryData = data.categoryIds.map((categoryId) => ({
         bookId: id,
@@ -94,19 +117,20 @@ export const updateBook = async (id: number, data: BookData): Promise<Book | nul
       });
     }
 
+    // 5. Ambil kembali data buku yang sudah lengkap dengan relasi kategori terbarunya.
     const finalBook = await tx.book.findUnique({
       where: { id },
       include: {
         categories: {
           include: {
-            category: true,
+            category: true, // Asumsi: Model BookCategory punya relasi 'category' ke model Category
           },
         },
       },
     });
 
     if (!finalBook) {
-        throw new Error('Book not found after update.');
+      throw new Error('Gagal menemukan buku setelah proses update.');
     }
 
     return finalBook;
