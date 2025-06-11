@@ -75,6 +75,7 @@ export const updateBook = async (req: Request, res: Response): Promise<void> => 
     }
     res.json(updatedBook);
   } catch (error: any) {
+    console.error("🛑 UpdateBook Error:", error);
     res.status(500).json({ message: 'Failed to update book', error: error.message });
   }
 };
