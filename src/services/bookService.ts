@@ -65,36 +65,54 @@ export const createBook = async (data: BookData): Promise<Book> => {
   return await prisma.book.create({ data });
 };
 
-export const updateBook = async (id: number, data: Partial<BookData>): Promise<Book | null> => {
-  const book = await prisma.book.findUnique({ where: { id } });
-  if (!book) return null;
-
-  const updatedBook = await prisma.book.update({
-    where: { id },
-    data: {
-      title: data.title,
-      author: data.author,
-      description: data.description,
-    },
-  });
-
-  await prisma.bookCategory.deleteMany({
-    where: { bookId: id },
-  });
-
-  if (data.categoryIds && data.categoryIds.length > 0) {
-    const bookCategoryData = data.categoryIds.map((categoryId) => ({
-      bookId: id,
-      categoryId,
-    }));
-
-    await prisma.bookCategory.createMany({
-      data: bookCategoryData,
-      skipDuplicates: true,
+export const updateBook = async (id: number, data: BookData): Promise<Book | null> => {
+  
+  const result = await prisma.$transaction(async (tx) => {
+   
+    const bookToUpdate: { title?: string; author?: string; description?: string } = {};
+    if (data.title) bookToUpdate.title = data.title;
+    if (data.author) bookToUpdate.author = data.author;
+    if (data.description) bookToUpdate.description = data.description;
+    
+    await tx.book.update({
+      where: { id },
+      data: bookToUpdate,
     });
-  }
 
-  return updatedBook;
+    await tx.bookCategory.deleteMany({
+      where: { bookId: id },
+    });
+
+    if (data.categoryIds && data.categoryIds.length > 0) {
+      const bookCategoryData = data.categoryIds.map((categoryId) => ({
+        bookId: id,
+        categoryId: categoryId,
+      }));
+
+      await tx.bookCategory.createMany({
+        data: bookCategoryData,
+      });
+    }
+
+    const finalBook = await tx.book.findUnique({
+      where: { id },
+      include: {
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+      },
+    });
+
+    if (!finalBook) {
+        throw new Error('Book not found after update.');
+    }
+
+    return finalBook;
+  });
+
+  return result;
 };
 
 
